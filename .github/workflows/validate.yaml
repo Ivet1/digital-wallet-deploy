@@ -1,0 +1,63 @@
+name: Validate chart and test deployment
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  lint:
+    name: Lint and render the chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Helm lint
+        run: helm lint charts/digital-wallet-chart -f environments/staging/values.yaml
+
+      - name: Helm template renders
+        run: helm template digital-wallet-app charts/digital-wallet-chart -f environments/staging/values.yaml > /dev/null
+
+      - name: Scan chart for misconfigurations (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'charts'
+          format: 'table'
+          exit-code: '0'
+
+  deployment-test:
+    name: Deployment test (kind + Vault)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Resolve the image from the chart and the staging environment
+        id: image
+        run: |
+          repo="$(sed -n 's/^[[:space:]]*repository:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}.*/\1/p' charts/digital-wallet-chart/values.yaml | head -n 1)"
+          tag="$(sed -n 's/^[[:space:]]*tag:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}.*/\1/p' environments/staging/values.yaml | head -n 1)"
+          [ -n "$repo" ] && [ -n "$tag" ] || { echo "could not read image repository/tag"; exit 1; }
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run the deployment test
+        env:
+          IMAGE_REPO: ${{ steps.image.outputs.repo }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: bash scripts/deployment-test.sh "$IMAGE_REPO" "$IMAGE_TAG"
