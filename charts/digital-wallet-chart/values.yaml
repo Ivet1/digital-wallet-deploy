@@ -1,0 +1,97 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/ivet1/digital-wallet-api
+  tag: "fd0b73c67cf8dec6468ad1bd9b9029fa9a291a2f"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "digital-wallet-app-digital-wallet-chart"
+
+podAnnotations:
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "digital-wallet-role"
+  vault.hashicorp.com/agent-inject-secret-ConnectionStrings__Default: "secret/data/digital-wallet/postgres"
+  vault.hashicorp.com/agent-inject-template-ConnectionStrings__Default: |
+    {{- with secret "secret/data/digital-wallet/postgres" -}}
+    Host=postgres-service;Port=5432;Database=walletdb;Username=postgres;Password={{ .Data.data.POSTGRES_PASSWORD }}
+    {{- end -}}
+
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 30
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "selfsigned-issuer"
+  hosts:
+    - host: digital-wallet.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: digital-wallet-tls-secret
+      hosts:
+        - digital-wallet.local
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+volumes: []
+volumeMounts: []
+nodeSelector: {}
+tolerations: {}
+affinity: {}
+env: {}

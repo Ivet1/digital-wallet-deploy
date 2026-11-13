@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "digital-wallet-chart.fullname" . }}-vault-bootstrap
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": "before-hook-creation,hook-succeeded"
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: default
+      restartPolicy: OnFailure
+      containers:
+        - name: vault-bootstrap
+          image: "hashicorp/vault:2.0.4"
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.{{ .Release.Namespace }}.svc:8200"
+            - name: VAULT_TOKEN
+              value: "root"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              echo "Waiting for Vault service at $VAULT_ADDR..."
+              until vault status >/dev/null 2>&1; do
+                sleep 2
+              done
+
+              echo "Enabling Kubernetes auth..."
+              vault auth enable kubernetes || true
+
+              TOKEN_REVIEWER_JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              KUBE_CA_CERT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)
+
+              vault write auth/kubernetes/config \
+                  kubernetes_host="https://kubernetes.default.svc" \
+                  token_reviewer_jwt="$TOKEN_REVIEWER_JWT" \
+                  kubernetes_ca_cert="$KUBE_CA_CERT"
+
+              echo 'path "secret/data/digital-wallet/*" { capabilities = ["read"] }' | vault policy write digital-wallet-policy -
+
+              vault write auth/kubernetes/role/digital-wallet-role \
+                  bound_service_account_names=digital-wallet-app-digital-wallet-chart \
+                  bound_service_account_namespaces={{ .Release.Namespace }} \
+                  policies=digital-wallet-policy \
+                  ttl=1h
+
+              vault kv put secret/digital-wallet/postgres POSTGRES_PASSWORD=postgres || true
+              echo "Vault bootstrap Job completed successfully via Helm hook!"

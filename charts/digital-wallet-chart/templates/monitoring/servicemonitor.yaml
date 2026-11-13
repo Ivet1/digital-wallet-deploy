@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "digital-wallet-chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: monitoring-stack
+    {{- include "digital-wallet-chart.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "digital-wallet-chart.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
