@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: digital_wallet_db
+    environment:
+      POSTGRES_DB: walletdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - wallet-net
+
+  api:
+    image: digital-wallet-api:latest
+    container_name: digital_wallet_api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=walletdb;Username=postgres;Password=secretpassword
+    depends_on:
+      - postgres
+    networks:
+      - wallet-net
+
+volumes:
+  pgdata:
+
+networks:
+  wallet-net:
+    driver: bridge
