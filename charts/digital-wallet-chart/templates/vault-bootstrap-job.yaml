@@ -56,5 +56,5 @@ spec:
                   policies=digital-wallet-policy \
                   ttl=1h
 
-              vault kv put secret/digital-wallet/postgres POSTGRES_PASSWORD=postgres || true
+              vault kv put secret/digital-wallet/postgres POSTGRES_PASSWORD=mysecretpassword || true
               echo "Vault bootstrap Job completed successfully via Helm hook!"
