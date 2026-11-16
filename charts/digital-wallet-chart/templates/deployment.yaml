@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +23,6 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        vault.hashicorp.com/agent-inject: "true"
     spec:
       automountServiceAccountToken: true
       {{- with .Values.imagePullSecrets }}
@@ -46,13 +46,6 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          {{- with .Values.env }}
-          env:
-            {{- range $key, $value := . }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
-          {{- end }}
           {{- if .Values.startupProbe }}
           startupProbe:
             {{- toYaml .Values.startupProbe | nindent 12 }}

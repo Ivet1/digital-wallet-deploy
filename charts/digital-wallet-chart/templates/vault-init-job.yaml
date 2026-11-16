@@ -1,3 +1,4 @@
+
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -9,31 +10,46 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: digital-wallet-app-digital-wallet-chart
+      serviceAccountName: {{ include "digital-wallet-chart.serviceAccountName" . }}
       restartPolicy: OnFailure
       containers:
-      - name: vault-init
-        image: hashicorp/vault:latest
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            echo "Waiting for Vault..."
-            until wget -qO- http://vault.default.svc:8200/v1/sys/health; do
-              sleep 2
-            done
-            
-            echo "Configuring Vault Kubernetes Auth..."
-            export VAULT_ADDR='http://vault.default.svc:8200'
-            
-            vault auth enable kubernetes || true
-            
-            vault write auth/kubernetes/config \
+        - name: vault-init
+          image: hashicorp/vault:2.0.4
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+
+              echo "Waiting for Vault..."
+              until wget -qO- http://vault.default.svc:8200/v1/sys/health; do
+                sleep 2
+              done
+
+              echo "Connecting to Vault..."
+              export VAULT_ADDR='http://vault.default.svc:8200'
+              export VAULT_TOKEN='root'
+
+              echo "Checking Kubernetes authentication..."
+              if ! vault auth list -format=json | grep -q '"kubernetes/"'; then
+                vault auth enable kubernetes
+              fi
+
+              echo "Configuring Kubernetes authentication..."
+              vault write auth/kubernetes/config \
                 kubernetes_host="https://kubernetes.default.svc:443"
-            
-            vault write auth/kubernetes/role/digital-wallet-role \
-                bound_service_account_names=digital-wallet-app-digital-wallet-chart \
+
+              echo "Creating policy for PostgreSQL secret..."
+              vault policy write digital-wallet-policy - <<'POLICY'
+              path "secret/data/digital-wallet/postgres" {
+                capabilities = ["read"]
+              }
+              POLICY
+
+              echo "Configuring Kubernetes role..."
+              vault write auth/kubernetes/role/digital-wallet-role \
+                bound_service_account_names={{ include "digital-wallet-chart.serviceAccountName" . }} \
                 bound_service_account_namespaces={{ .Release.Namespace }} \
-                policies=default \
+                policies=digital-wallet-policy \
                 ttl=1h
-            
-            echo "Vault successfully configured!"
+
+              echo "Vault configuration completed successfully!"
