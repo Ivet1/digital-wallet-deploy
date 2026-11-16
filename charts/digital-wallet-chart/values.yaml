@@ -1,4 +1,3 @@
-```yaml
 replicaCount: 2
 
 image:
