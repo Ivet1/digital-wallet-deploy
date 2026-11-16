@@ -38,7 +38,7 @@ jobs:
           exit-code: '0'
 
   deployment-test:
-    name: Deployment test (Helm dry-run)
+    name: Deployment test (Helm template check)
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -50,5 +50,5 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Verify chart template with dry-run
-        run: helm install digital-wallet-test charts/digital-wallet-chart --dry-run --debug
+      - name: Verify chart rendering successfully
+        run: helm template digital-wallet-test charts/digital-wallet-chart --debug
