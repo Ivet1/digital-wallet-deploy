@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/ivet1/digital-wallet-api'
+    repoURL: 'https://github.com/ivet1/digital-wallet-deploy'
     targetRevision: HEAD
-    path: DigitalWallet.Api/digital-wallet-chart
+    path: charts/digital-wallet-chart
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: default

@@ -95,3 +95,6 @@ nodeSelector: {}
 tolerations: {}
 affinity: {}
 env: {}
+
+postgres:
+  password: "mysecretpassword"
