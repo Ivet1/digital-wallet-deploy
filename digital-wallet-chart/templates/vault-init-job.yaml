@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "digital-wallet-chart.fullname" . }}-vault-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-creation
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: hashicorp/vault:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Waiting for Vault..."
+            until wget -qO- http://vault.default.svc:8200/v1/sys/health; do
+              sleep 2
+            done
+            
+            echo "Configuring Vault Kubernetes Auth..."
+            export VAULT_ADDR='http://vault.default.svc:8200'
+            
+            vault auth enable kubernetes || true
+            
+            vault write auth/kubernetes/config \
+                kubernetes_host="https://kubernetes.default.svc:443"
+            
+            vault write auth/kubernetes/role/digital-wallet-role \
+                bound_service_account_names=default \
+                bound_service_account_namespaces={{ .Release.Namespace }} \
+                policies=default \
+                ttl=1h
+            
+            echo "Vault successfully configured!"
