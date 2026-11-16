@@ -9,7 +9,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: default
+      serviceAccountName: digital-wallet-app-digital-wallet-chart
       restartPolicy: OnFailure
       containers:
       - name: vault-init
@@ -31,7 +31,7 @@ spec:
                 kubernetes_host="https://kubernetes.default.svc:443"
             
             vault write auth/kubernetes/role/digital-wallet-role \
-                bound_service_account_names=default \
+                bound_service_account_names=digital-wallet-app-digital-wallet-chart \
                 bound_service_account_namespaces={{ .Release.Namespace }} \
                 policies=default \
                 ttl=1h
