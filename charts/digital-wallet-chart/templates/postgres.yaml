@@ -12,8 +12,18 @@ spec:
     metadata:
       labels:
         app: postgres
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "digital-wallet-role"
+        vault.hashicorp.com/agent-inject-secret-postgres-password: "secret/data/digital-wallet/postgres"
+        vault.hashicorp.com/agent-inject-template-postgres-password: |
+          {{ "{{" }}- with secret "secret/data/digital-wallet/postgres" -{{ "}}" }}
+          {{ "{{" }} .Data.data.password {{ "}}" }}
+          {{ "{{" }}- end -{{ "}}" }}
+        vault.hashicorp.com/agent-inject-perms-postgres-password: "0444"
     spec:
-      automountServiceAccountToken: false
+      serviceAccountName: digital-wallet-app-digital-wallet-chart
+      automountServiceAccountToken: true
       containers:
         - name: postgres
           image: postgres:15-alpine
@@ -25,11 +35,8 @@ spec:
               value: walletdb
             - name: POSTGRES_USER
               value: postgres
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: password
+            - name: POSTGRES_PASSWORD_FILE
+              value: /vault/secrets/postgres-password
           resources:
             limits:
               cpu: "500m"
