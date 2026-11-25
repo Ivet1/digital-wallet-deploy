@@ -8,3 +8,4 @@ configMapGenerator:
     namespace: default
     files:
       - bootstrap.sh
+      - configure-vault.sh

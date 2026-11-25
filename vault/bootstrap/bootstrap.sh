@@ -1,9 +1,7 @@
 #!/bin/sh
-# Auto-init, unseal, and configure Vault for local kind clusters.
 VAULT="http://vault-0.vault-internal.default.svc:8200"
 NS="default"
 SECRET="vault-init"
-# Random password, used only if Vault has no postgres secret yet (never stored in Git)
 PG_PASSWORD="${PG_PASSWORD:-$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32)}"
 SA_NAME="${SA_NAME:-digital-wallet-app-digital-wallet-chart}"
 SA_NS="${SA_NS:-default}"
@@ -14,37 +12,11 @@ log() { echo "[$(date +%T)] $*"; }
 configure() {
   TOKEN=$(kubectl -n "$NS" get secret "$SECRET" -o jsonpath='{.data.root_token}' 2>/dev/null | base64 -d)
   [ -z "$TOKEN" ] && { log "root token secret not available yet"; return 1; }
+
+  VAULT_ADDR="$VAULT" VAULT_TOKEN="$TOKEN" SA_NAME="$SA_NAME" SA_NS="$SA_NS" ROLE_TTL="24h" \
+    /bin/sh /scripts/configure-vault.sh
+
   H="X-Vault-Token: $TOKEN"
-
-  # Enable KV v2 engine at secret/ if not already mounted.
-  if ! curl -sf -H "$H" "$VAULT/v1/sys/mounts" | jq -e '."secret/"' >/dev/null 2>&1; then
-    log "enabling kv-v2 at secret/"
-    curl -sf -H "$H" -X POST -d '{"type":"kv","options":{"version":"2"}}' "$VAULT/v1/sys/mounts/secret" >/dev/null
-  fi
-
-  # Enable Kubernetes auth method if not already enabled.
-  if ! curl -sf -H "$H" "$VAULT/v1/sys/auth" | jq -e '."kubernetes/"' >/dev/null 2>&1; then
-    log "enabling kubernetes auth"
-    curl -sf -H "$H" -X POST -d '{"type":"kubernetes"}' "$VAULT/v1/sys/auth/kubernetes" >/dev/null
-  fi
-
-  # Configure Kubernetes API endpoint inside the cluster.
-  curl -sf -H "$H" -X POST \
-    -d '{"kubernetes_host":"https://kubernetes.default.svc:443"}' \
-    "$VAULT/v1/auth/kubernetes/config" >/dev/null
-
-  # Write read/list policy for digital-wallet secrets.
-  POLICY='path "secret/data/digital-wallet/*" { capabilities = ["read","list"] }
-path "secret/metadata/digital-wallet/*" { capabilities = ["read","list"] }'
-  jq -n --arg p "$POLICY" '{policy:$p}' | curl -sf -H "$H" -X PUT -d @- \
-    "$VAULT/v1/sys/policies/acl/digital-wallet-policy" >/dev/null
-
-  # Bind Kubernetes service account and namespace to the policy.
-  jq -n --arg sa "$SA_NAME" --arg ns "$SA_NS" \
-    '{bound_service_account_names:$sa, bound_service_account_namespaces:$ns, policies:"digital-wallet-policy", ttl:"24h"}' \
-    | curl -sf -H "$H" -X POST -d @- "$VAULT/v1/auth/kubernetes/role/digital-wallet-role" >/dev/null
-
-  # Seed Postgres secret only if it does not exist yet.
   CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "$H" "$VAULT/v1/secret/data/digital-wallet/postgres")
   if [ "$CODE" = "404" ]; then
     log "creating postgres secret"
