@@ -2,6 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: {{ include "digital-wallet-chart.fullname" . }}-alerts
+  namespace: monitoring
   labels:
     {{- include "digital-wallet-chart.labels" . | nindent 4 }}
     release: monitoring-stack
