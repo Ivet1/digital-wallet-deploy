@@ -1,0 +1,43 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "digital-wallet-chart.fullname" . }}-alerts
+  labels:
+    {{- include "digital-wallet-chart.labels" . | nindent 4 }}
+    release: monitoring-stack
+spec:
+  groups:
+    - name: digital-wallet-app.rules
+      rules:
+        - alert: DigitalWalletNoReadyReplicas
+          expr: |
+            kube_deployment_status_replicas_ready{namespace="{{ .Release.Namespace }}", deployment=~".*digital-wallet.*"} < 1
+          for: 1m
+          labels:
+            severity: critical
+            app: digital-wallet
+          annotations:
+            summary: "Digital Wallet API has no ready replicas"
+            description: "Deployment in namespace {{ .Release.Namespace }} has fewer than 1 ready replica for more than 1 minute."
+
+        - alert: DigitalWalletPodNotReady
+          expr: |
+            kube_pod_status_ready{namespace="{{ .Release.Namespace }}", pod=~".*digital-wallet.*", condition="true"} == 0
+          for: 1m
+          labels:
+            severity: warning
+            app: digital-wallet
+          annotations:
+            summary: "Digital Wallet pod is not Ready"
+            description: "Pod {{ "{{" }}$labels.pod{{ "}}" }} in namespace {{ .Release.Namespace }} has not been Ready for over 1 minute."
+
+        - alert: DigitalWalletContainerRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}", pod=~".*digital-wallet.*"}[5m]) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: digital-wallet
+          annotations:
+            summary: "Digital Wallet container restarted"
+            description: "Container {{ "{{" }}$labels.container{{ "}}" }} in pod {{ "{{" }}$labels.pod{{ "}}" }} restarted in the last 5 minutes."
