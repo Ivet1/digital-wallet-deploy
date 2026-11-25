@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-bootstrap
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-bootstrap
+  template:
+    metadata:
+      labels:
+        app: vault-bootstrap
+    spec:
+      serviceAccountName: vault-bootstrap
+      containers:
+        - name: bootstrap
+          image: alpine/k8s:1.31.2
+          command: ["/bin/sh", "/scripts/bootstrap.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: vault-bootstrap-script
+            defaultMode: 0555
