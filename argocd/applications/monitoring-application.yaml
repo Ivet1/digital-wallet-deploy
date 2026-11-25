@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    targetRevision: 92.17.1              
+    targetRevision: 92.17.1
     helm:
       releaseName: monitoring-stack
       valuesObject:
@@ -51,6 +51,10 @@ spec:
               - secretName: grafana-tls
                 hosts:
                   - grafana.local
+          persistence:
+            enabled: true
+            size: 5Gi
+            storageClassName: standard
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
