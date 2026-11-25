@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/ivet1/digital-wallet-api
-  tag: "41f4e35cdd1ef1e3a51e1d445f1a75b0fbc5be47"
+  tag: "c2dfdf2980352c7607f144ae0e8e03b18296afe0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
