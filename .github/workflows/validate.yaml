@@ -37,8 +37,8 @@ jobs:
           format: 'table'
           exit-code: '0'
 
-  deployment-test:
-    name: Deployment test (Helm template check)
+  template-check:
+    name: Template debug check
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -50,5 +50,5 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Verify chart rendering successfully
-        run: helm template digital-wallet-test charts/digital-wallet-chart --debug
+      - name: Verify chart rendering with debug output
+        run: helm template digital-wallet-test charts/digital-wallet-chart --debug > /dev/null
