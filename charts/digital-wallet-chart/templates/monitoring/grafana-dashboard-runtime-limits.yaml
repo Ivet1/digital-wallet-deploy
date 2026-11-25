@@ -1,9 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-digital-wallet-runtime-limits
+  name: {{ include "digital-wallet-chart.fullname" . }}-grafana-dashboard-runtime-limits
   namespace: monitoring
   labels:
+    {{- include "digital-wallet-chart.labels" . | nindent 4 }}
     grafana_dashboard: "1"
 data:
   digital-wallet-runtime-limits.json: |
@@ -38,7 +39,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(aspnetcore_routing_match_attempts_total{namespace=\"default\",container=\"digital-wallet-chart\"}[1m])) by (pod, http_route, aspnetcore_routing_match_status)",
-              "legendFormat": "{{pod}} {{http_route}} ({{aspnetcore_routing_match_status}})",
+              "legendFormat": "{{ "{{" }}pod{{ "}}" }} {{ "{{" }}http_route{{ "}}" }} ({{ "{{" }}aspnetcore_routing_match_status{{ "}}" }})",
               "refId": "A"
             }
           ],
@@ -65,12 +66,12 @@ data:
           "targets": [
             {
               "expr": "sum(aspnetcore_memory_pool_pooled_bytes{namespace=\"default\",container=\"digital-wallet-chart\"}) by (pod)",
-              "legendFormat": "Pooled - {{pod}}",
+              "legendFormat": "Pooled - {{ "{{" }}pod{{ "}}" }}",
               "refId": "A"
             },
             {
               "expr": "sum(aspnetcore_memory_pool_rented_bytes_total{namespace=\"default\",container=\"digital-wallet-chart\"}) by (pod)",
-              "legendFormat": "Rented total - {{pod}}",
+              "legendFormat": "Rented total - {{ "{{" }}pod{{ "}}" }}",
               "refId": "B"
             }
           ],
@@ -97,7 +98,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"default\",container=\"digital-wallet-chart\"}[1m])) by (pod) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"default\",container=\"digital-wallet-chart\"}[1m])) by (pod), 0.0001)",
-              "legendFormat": "Throttled ratio - {{pod}}",
+              "legendFormat": "Throttled ratio - {{ "{{" }}pod{{ "}}" }}",
               "refId": "A"
             }
           ],
@@ -124,12 +125,12 @@ data:
           "targets": [
             {
               "expr": "sum(container_memory_working_set_bytes{namespace=\"default\",container=\"digital-wallet-chart\"}) by (pod)",
-              "legendFormat": "Working Set - {{pod}}",
+              "legendFormat": "Working Set - {{ "{{" }}pod{{ "}}" }}",
               "refId": "A"
             },
             {
               "expr": "sum(container_memory_rss{namespace=\"default\",container=\"digital-wallet-chart\"}) by (pod)",
-              "legendFormat": "RSS - {{pod}}",
+              "legendFormat": "RSS - {{ "{{" }}pod{{ "}}" }}",
               "refId": "B"
             }
           ],
